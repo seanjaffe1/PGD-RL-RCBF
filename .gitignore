@@ -4,3 +4,5 @@
 *__pycache__/
 output/*
 */.DS_Store
+info_r.txt
+wandb/*

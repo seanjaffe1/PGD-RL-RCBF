@@ -358,6 +358,10 @@ class PvtolEnv(gym.Env):
 
         self.hazards = hazards
 
+    def seed(self, seed):
+        np.random.seed(seed)
+
+
 
 if __name__ == "__main__":
 

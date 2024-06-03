@@ -157,6 +157,8 @@ class SimulatedCarsEnv(gym.Env):
         obs[1::2] /= 30.0  # scale velocities
         return obs
 
+    def seed(self, seed):
+        np.random.seed(seed)
 
 if __name__ == "__main__":
 
@@ -198,6 +200,7 @@ if __name__ == "__main__":
         action += np.array([gain * (state[8] - state[6] + 0.4) * (state[8] - state[6] + 0.4 > 0)])
         return action
 
+
     while not done:
         # Plot current state
         state = dynamics_model.get_state(obs)
@@ -226,3 +229,7 @@ if __name__ == "__main__":
         print('action = {},\taction_cbf = {},\tepisode_reward = {:.3f}'.format(random_action + action_safe, action_safe, episode_reward))
 
     plt.show()
+
+
+
+

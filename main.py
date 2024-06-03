@@ -1,6 +1,9 @@
 # import comet_ml at the top of your file
 from comet_ml import Experiment
 
+
+import wandb
+
 import argparse
 import time
 import torch
@@ -84,11 +87,12 @@ def train(agent, env, dynamics_model, args, experiment=None):
                                                                                                          dynamics_model)
 
                     if experiment:
-                        experiment.log_metric('loss/critic_1', critic_1_loss, updates)
-                        experiment.log_metric('loss/critic_2', critic_2_loss, step=updates)
-                        experiment.log_metric('loss/policy', policy_loss, step=updates)
-                        experiment.log_metric('loss/entropy_loss', ent_loss, step=updates)
-                        experiment.log_metric('entropy_temperature/alpha', alpha, step=updates)
+                        # experiment.log_metric('loss/critic_1', critic_1_loss, updates)
+                        # experiment.log_metric('loss/critic_2', critic_2_loss, step=updates)
+                        # experiment.log_metric('loss/policy', policy_loss, step=updates)
+                        # experiment.log_metric('loss/entropy_loss', ent_loss, step=updates)
+                        # experiment.log_metric('entropy_temperature/alpha', alpha, step=updates)
+                        wandb.log({'loss/critic_1': critic_1_loss, 'loss/critic_2': critic_2_loss, 'loss/policy': policy_loss, 'loss/entropy_loss': ent_loss, 'entropy_temperature/alpha': alpha, 'Steps':updates})
                     updates += 1
 
             # Sample action from policy
@@ -149,19 +153,20 @@ def train(agent, env, dynamics_model, args, experiment=None):
             dynamics_model.save_disturbance_models(args.output)
 
         if experiment:
-            # Comet.ml logging
-            experiment.log_metric('reward/train', episode_reward, step=i_episode)
-            experiment.log_metric('cost/train', episode_cost, step=i_episode)
+            # # Comet.ml logging
+            # experiment.log_metric('reward/train', episode_reward, step=i_episode)
+            # experiment.log_metric('cost/train', episode_cost, step=i_episode)
+            wandb.log({'reward/train': episode_reward, 'cost/train': episode_cost, 'Steps':i_episode})
         prGreen("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}, cost: {}".format(i_episode, total_numsteps,
                                                                                       episode_steps,
                                                                                              round(episode_reward, 2), round(episode_cost, 2)))
 
         # Evaluation
-        if i_episode % 5 == 0 and args.eval is True:
+        if i_episode % 1 == 0 and args.eval is True: # was 5
             print('Size of replay buffers: real : {}, \t\t model : {}'.format(len(memory), len(memory_model)))
             avg_reward = 0.
             avg_cost = 0.
-            episodes = 5
+            episodes = 3
             for _ in range(episodes):
                 obs, info = env.reset()
                 episode_reward = 0
@@ -180,9 +185,11 @@ def train(agent, env, dynamics_model, args, experiment=None):
             avg_reward /= episodes
             avg_cost /= episodes
             if experiment:
-                experiment.log_metric('avg_reward/test', avg_reward, step=i_episode)
-                experiment.log_metric('avg_cost/test', avg_cost, step=i_episode)
-
+                # print("Logging Test to comet.ml")
+                # experiment.log_metric('avg_reward/test', avg_reward, step=i_episode)
+                # experiment.log_metric('avg_cost/test', avg_cost, step=i_episode)
+                wandb.log({'avg_reward/test': avg_reward, 'avg_cost/test': avg_cost, 'Steps':i_episode})
+                print(f"logged to wandb {i_episode}")
             print("----------------------------------------")
             print("Test Episodes: {}, Avg. Reward: {}, Avg. Cost: {}".format(episodes, round(avg_reward, 2), round(avg_cost, 2)))
             print("----------------------------------------")
@@ -257,9 +264,9 @@ if __name__ == "__main__":
     parser.add_argument('--obs_config', default="default", help='How to generate obstacles for Unicycle env.')
     parser.add_argument('--rand_init', type=bool, default=False, help='How to generate obstacles for Unicycle env.')
     # Comet ML
-    parser.add_argument('--log_comet', action='store_true', dest='log_comet', help="Whether to log data")
-    parser.add_argument('--comet_key', default='', help='Comet API key')
-    parser.add_argument('--comet_workspace', default='', help='Comet workspace')
+    parser.add_argument('--log_wandb', action='store_true', dest='log_wandb', help="Whether to log data")
+    # parser.add_argument('--comet_key', default='', help='Comet API key')
+    # parser.add_argument('--comet_workspace', default='', help='Comet workspace')
     parser.add_argument('--comet_project_name', default='', help='Comet project Name')
     # SAC Args
     parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
@@ -351,7 +358,7 @@ if __name__ == "__main__":
         if args.use_comp and (args.model_based or args.cbf_mode != "baseline"):
             raise Exception('Compensator can only be used with model free RL and baseline CBF.')
         args.output = get_output_folder(args.output, args.env_name)
-        if args.log_comet:
+        if args.log_wandb:
             import random
             project_name = 'rl-rcbf-' + args.comet_project_name.lower() + '-' + args.env_name.lower()
             experiment_name = 'comp_' if args.use_comp else ''
@@ -360,14 +367,26 @@ if __name__ == "__main__":
             experiment_name += args.output[args.output.index('run') + 3:]  # str(random.randint(0, 1000))
             prYellow('Logging experiment on comet.ml!')
             # Create an experiment with your api key
-            experiment = Experiment(
-                api_key=args.comet_key,
-                project_name=project_name,
-                workspace=args.comet_workspace,
-            )
-            experiment.set_name(experiment_name)
+
+            # read api key from file
+            
+            # if args.comet_key == '':
+            #     items = []
+            #     with open('info_r.txt', 'r') as f:
+            #         items = f.readlines()
+            #     project_name = items[0].strip()
+            #     args.comet_workspace = items[1].strip()
+            #     args.comet_key = items[2].strip()
+
+
+            # experiment = Experiment(
+            #     api_key=args.comet_key,
+            #     project_name=project_name,
+            #     workspace=args.comet_workspace,
+            # )
+
+            
             # Log args on comet.ml
-            experiment.log_parameters(vars(args))
             experiment_tags = [str(args.batch_size) + '_batch',
                                str(args.updates_per_step) + '_step_updates',
                                args.cbf_mode]
@@ -376,7 +395,16 @@ if __name__ == "__main__":
             if args.use_comp:
                 experiment_tags.append('use_comp')
             print('Comet tags: {}'.format(experiment_tags))
-            experiment.add_tags(experiment_tags)
+
+
+
+            wandb.init(project="CBF", 
+                       name=experiment_name,
+                       tags=experiment_tags,
+                       config=vars(args))
+            experiment = True
+            wandb.define_metric('Steps')
+            wandb.define_metric("*", step_metric="Steps")
         else:
             experiment = None
         train(agent, env, dynamics_model, args, experiment)

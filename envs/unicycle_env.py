@@ -358,6 +358,10 @@ class UnicycleEnv(gym.Env):
 
         self.hazards = hazards
 
+    def seed(self, seed):
+        np.random.seed(seed)
+
+
 
 if __name__ == "__main__":
 
@@ -425,4 +429,5 @@ if __name__ == "__main__":
         episode_step += 1
         print('step {} \tepisode_reward = {}'.format(episode_step, episode_reward))
     plt.show()
+
 
